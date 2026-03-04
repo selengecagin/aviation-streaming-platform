@@ -2,25 +2,37 @@ import sys
 import requests
 import json
 import time
+import logging
 from confluent_kafka import Producer
 
-def error_gb(err):
-        print(f'Global Error : {err}')
+logging.basicConfig(
+    filename='pipeline.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
-def delivery_report(err,msg):
-    if err.retriable():
-        print(f'Retriable error : {err}')
-    elif err.fatal():
-        print(f'Fatal error, shutting down : {err}')
+def error_gb(err):
+        logging.error(f'Global Error : {err}')
+
+def delivery_report(err, msg):
+    if err is not None:
+        if err.retriable():
+            logging.error(f"Retriable error: {err}")
+        elif err.fatal():
+            logging.critical(f"Fatal error, shutting down: {err}")
+        else:
+            logging.error(f"Delivery failed: {err}")
     else:
-        print(f'Success, message delivered to {msg.topic()}[{msg.partition()}]')
+        logging.info(
+            f"Success, message delivered to {msg.topic()}[{msg.partition()}]"
+        )
 
 conf = {'bootstrap.servers': 'localhost:9092'}
 
 try:
     producer = Producer(conf)
 except Exception as e:
-    print(f'Failed to create Producer : {e}')
+    logging.error(f'Failed to create Producer : {e}')
     sys.exit(1)
 
 OPENSKY_URL = "https://opensky-network.org/api/states/all"
@@ -28,29 +40,26 @@ OPENSKY_URL = "https://opensky-network.org/api/states/all"
 while True:
     try:
         r = requests.get(OPENSKY_URL, timeout=10)
-        r.raise_for_status()  # <-- this makes HTTPError work
+        r.raise_for_status()
 
         data = r.json()
         states = data.get("states", [])
-        print(f"Fetched {len(states)} flights")
+        logging.info(f"Fetched {len(states)} flights")
 
-    except requests.exceptions.HTTPError:
-        print("HTTP error returned from API")
+    except requests.exceptions.HTTPError as errh:
+        logging.error("HTTP error returned from API")
         time.sleep(10)
         continue
-
-    except requests.exceptions.ReadTimeout:
-        print("API request timed out")
+    except requests.exceptions.ReadTimeout as errrt:
+        logging.error("API request timed out")
         time.sleep(10)
         continue
-
-    except requests.exceptions.ConnectionError:
-        print("Failed to establish connection to API")
+    except requests.exceptions.ConnectionError as conerr:
+        logging.error("Failed to establish connection to API")
         time.sleep(10)
         continue
-
-    except requests.exceptions.RequestException:
-        print("Unexpected request exception occurred")
+    except requests.exceptions.RequestException as errex:
+        logging.error("Unexpected request exception occurred")
         time.sleep(10)
         continue
 
@@ -59,10 +68,10 @@ while True:
             flight_json = json.dumps(state).encode("utf-8")
             producer.produce('flight_positions', flight_json, on_delivery=delivery_report)
         except BufferError as e:
-            print(f'Local producer queue is full,{e}')
+            logging.info(f'Local producer queue is full,{e}')
             producer.poll(1)
 
     producer.flush()
-    print("Batch sent to Kafka\n")
+    logging.info("Batch sent to Kafka\n")
 
     time.sleep(10)
