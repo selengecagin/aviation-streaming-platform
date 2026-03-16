@@ -1,4 +1,5 @@
 from confluent_kafka import Consumer, KafkaError
+import json
 
 def main():
     consumer = Consumer({
@@ -23,7 +24,15 @@ def main():
                     print("Error:", msg.error())
             else:
                 value = msg.value().decode("utf-8")
-                print("Received:", value)
+                data = json.loads(value)
+
+                states = data["states"]
+
+                for flight in states:
+                    latitude = flight[6]
+                    longitude = flight[5]
+
+                    print("Latitude:", latitude, "Longitude:", longitude)
 
     finally:
         consumer.close()
