@@ -24,12 +24,24 @@ def main():
                     print("Error:", msg.error())
             else:
                 value = msg.value().decode("utf-8")
-                flight = json.loads(value)   # this is already one flight list
+                flight = json.loads(value)
 
-                latitude = flight[6]
+                icao24 = flight[0]
+                callsign = flight[1]
+                origin_country = flight[2]
+                timestamp = flight[3]
                 longitude = flight[5]
+                latitude = flight[6]
+                altitude = flight[7]
+                on_ground = flight[8]
+                velocity = flight[9]
+                heading = flight[10]
 
-                print("Latitude:", latitude, "Longitude:", longitude)
+                print(
+                    f"ICAO24: {icao24}, Callsign: {callsign}, Country: {origin_country}, "
+                    f"Time: {timestamp}, Lat: {latitude}, Lon: {longitude}, Alt: {altitude}, "
+                    f"On Ground: {on_ground}, Velocity: {velocity}, Heading: {heading}"
+                )
 
     finally:
         consumer.close()
