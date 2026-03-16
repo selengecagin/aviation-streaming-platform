@@ -24,15 +24,12 @@ def main():
                     print("Error:", msg.error())
             else:
                 value = msg.value().decode("utf-8")
-                data = json.loads(value)
+                flight = json.loads(value)   # this is already one flight list
 
-                states = data["states"]
+                latitude = flight[6]
+                longitude = flight[5]
 
-                for flight in states:
-                    latitude = flight[6]
-                    longitude = flight[5]
-
-                    print("Latitude:", latitude, "Longitude:", longitude)
+                print("Latitude:", latitude, "Longitude:", longitude)
 
     finally:
         consumer.close()
